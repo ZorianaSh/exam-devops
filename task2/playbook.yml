@@ -96,3 +96,12 @@
     - name: Show Helm version
       debug:
         var: helm_check.stdout_lines
+
+    - name: Run kubectl proxy
+      shell: nohup kubectl proxy --address='0.0.0.0' --disable-filter=true --port=8001 &
+      async: 10
+      poll: 0
+
+    - name: Allow port 8001
+      shell: ufw allow 8001
+      ignore_errors: yes
