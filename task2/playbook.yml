@@ -61,13 +61,8 @@
         remote_src: yes
         mode: '0755'
 
-- name: Start Minikube
-  shell: minikube start --driver=docker --force
-  args:
-    creates: /root/.minikube/profiles/minikube/config.json
-
-      shell: minikube start 
---driver=docker
+    - name: Start Minikube
+      shell: minikube start --driver=docker --force
       args:
         creates: /root/.minikube/profiles/minikube/config.json
 
