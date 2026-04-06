@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: task3-app
-          image: ghcr.io/zorianash/task3-app:develop
+          image: task3-app:develop
           ports:
             - containerPort: 5000

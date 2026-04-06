@@ -8,62 +8,72 @@ on:
       - '1.0.0'
 
 jobs:
-  build-and-deploy:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set image tag
-        id: vars
-        run: |
-          if [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
-            echo "tag=develop" >> "$GITHUB_OUTPUT"
-            echo "env_name=dev" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=1.0.0" >> "$GITHUB_OUTPUT"
-            echo "env_name=release" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" 
---password-stdin
-
-      - name: Build image
-        run: docker build -t ghcr.io/${{ github.repository_owner }}/task3-app:${{ 
-steps.vars.outputs.tag }} ./task3/app
-
-      - name: Push image
-        run: docker push ghcr.io/${{ github.repository_owner }}/task3-app:${{ 
-steps.vars.outputs.tag }}
-
-      - name: SSH deploy
+      - name: Copy repo to server and deploy dev
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 159.89.12.21
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd /root
             if [ ! -d exam-devops ]; then
-              git clone https://github.com/${{ github.repository }}.git
+              git clone https://github.com/ZorianaSh/exam-devops.git
             fi
-            cd exam-devops
+            cd /root/exam-devops
             git fetch --all
-            git checkout ${{ github.ref_name }}
-            git pull origin ${{ github.ref_name }}
+            git checkout develop
+            git pull origin develop
 
-            if [ "${{ steps.vars.outputs.env_name }}" = "dev" ]; then
-              kubectl apply -f task3/k8s/dev/namespace.yaml
-              kubectl apply --dry-run=client -f task3/k8s/dev/
-              kubectl apply -f task3/k8s/dev/
-            else
-              kubectl apply -f task3/k8s/release/namespace.yaml
-              kubectl apply --dry-run=client -f task3/k8s/release/
-              kubectl apply -f task3/k8s/release/
+            eval $(minikube -p minikube docker-env)
+            cd /root/exam-devops/task3/app
+            docker build -t task3-app:develop .
+
+            cd /root/exam-devops
+            kubectl apply -f task3/k8s/dev/namespace.yaml
+            kubectl apply -f task3/k8s/dev/deployment.yaml --dry-run=client
+            kubectl apply -f task3/k8s/dev/service.yaml --dry-run=client
+            kubectl apply -f task3/k8s/dev/
+
+  deploy-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy repo to server and deploy release
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 159.89.12.21
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /root
+            if [ ! -d exam-devops ]; then
+              git clone https://github.com/ZorianaSh/exam-devops.git
             fi
+            cd /root/exam-devops
+            git fetch --all
+            git checkout main
+            git pull origin main
+
+            eval $(minikube -p minikube docker-env)
+            cd /root/exam-devops/task3/app
+            docker build -t task3-app:1.0.0 .
+
+            cd /root/exam-devops
+            kubectl apply -f task3/k8s/release/namespace.yaml
+            kubectl apply -f task3/k8s/release/deployment.yaml --dry-run=client
+            kubectl apply -f task3/k8s/release/service.yaml --dry-run=client
+            kubectl apply -f task3/k8s/release/
