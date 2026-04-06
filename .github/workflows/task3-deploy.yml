@@ -1,0 +1,74 @@
+name: Task3 Deploy
+
+on:
+  push:
+    branches:
+      - develop
+    tags:
+      - "1.0.0"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # LOGIN TO GHCR
+      # -------------------------
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} 
+--password-stdin
+
+      # -------------------------
+      # BUILD IMAGE
+      # -------------------------
+      - name: Build image
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+            TAG=develop
+          else
+            TAG=1.0.0
+          fi
+          docker build -t ghcr.io/${{ github.repository_owner }}/task3-app:$TAG ./task3/app
+
+      # -------------------------
+      # PUSH IMAGE
+      # -------------------------
+      - name: Push image
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+            TAG=develop
+          else
+            TAG=1.0.0
+          fi
+          docker push ghcr.io/${{ github.repository_owner }}/task3-app:$TAG
+
+      # -------------------------
+      # SSH TO SERVER
+      # -------------------------
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 159.89.12.21
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /root
+            if [ ! -d exam-devops ]; then
+              git clone https://github.com/${{ github.repository }}.git
+            fi
+            cd exam-devops
+            git pull
+
+            if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+              kubectl apply -f task3/k8s/dev/namespace.yaml
+              kubectl apply --dry-run=client -f task3/k8s/dev/
+              kubectl apply -f task3/k8s/dev/
+            else
+              kubectl apply -f task3/k8s/release/namespace.yaml
+              kubectl apply --dry-run=client -f task3/k8s/release/
+              kubectl apply -f task3/k8s/release/
+            fi
