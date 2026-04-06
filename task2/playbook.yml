@@ -1,52 +1,47 @@
-- hosts: minikube
-  become: yes
-  vars:
-    kubectl_version: "v1.30.1"
-    minikube_version: "v1.35.0"
-    helm_version: "v3.15.4"
+- hosts: all
+  become: true
 
   tasks:
-    - name: Update apt cache
+
+    - name: Update apt
       apt:
         update_cache: yes
-        cache_valid_time: 3600
 
-    - name: Install required packages
+    - name: Install dependencies
       apt:
         name:
           - curl
-          - wget
           - apt-transport-https
           - ca-certificates
-          - conntrack
-          - socat
-          - docker.io
         state: present
 
-    - name: Enable and start Docker
-      systemd:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Start Docker
+      service:
         name: docker
-        enabled: yes
         state: started
+        enabled: true
 
     - name: Install kubectl
       get_url:
-        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        url: https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
         dest: /usr/local/bin/kubectl
         mode: '0755'
 
     - name: Install Minikube
       get_url:
-        url: "https://storage.googleapis.com/minikube/releases/{{ minikube_version 
-}}/minikube-linux-amd64"
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
         dest: /usr/local/bin/minikube
         mode: '0755'
 
     - name: Install Helm archive
       get_url:
-        url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+        url: https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz
         dest: /tmp/helm.tar.gz
-        mode: '0644'
 
     - name: Unarchive Helm
       unarchive:
@@ -58,17 +53,17 @@
       copy:
         src: /tmp/linux-amd64/helm
         dest: /usr/local/bin/helm
-        remote_src: yes
         mode: '0755'
+        remote_src: yes
 
     - name: Start Minikube
       shell: minikube start --driver=docker --force
-      args:
-        creates: /root/.minikube/profiles/minikube/config.json
 
-    - name: Enable ingress addon
+    - name: Enable ingress
       shell: minikube addons enable ingress
-      changed_when: false
+
+    - name: Enable dashboard
+      shell: minikube addons enable dashboard
 
     - name: Check kubectl version
       command: kubectl version --client
@@ -96,21 +91,6 @@
     - name: Show Helm version
       debug:
         var: helm_check.stdout_lines
-
-    - name: Run kubectl proxy
-      shell: nohup kubectl proxy --address='0.0.0.0' --disable-filter=true --port=8001 &
-      async: 10
-      poll: 0
-
-    - name: Allow port 8001
-      shell: ufw allow 8001
-      ignore_errors: yes
-
-    - name: Start kubectl proxy (background)
-      shell: nohup kubectl proxy --address='0.0.0.0' --disable-filter=true --port=8001 
->/tmp/kubectl-proxy.log 2>&1 &
-      args:
-        executable: /bin/bash
 
     - name: Kill old kubectl proxy
       shell: pkill -f "kubectl proxy" || true
