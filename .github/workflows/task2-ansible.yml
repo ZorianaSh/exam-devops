@@ -30,25 +30,13 @@ jobs:
 
       - name: Create inventory
         run: |
-          cat > task2/inventory.ini <<EOF
-          [minikube]
-          node1 ansible_host=${{ github.event.inputs.vm_ip }} ansible_user=root
-          EOF
+          echo "[minikube]" > task2/inventory.ini
+          echo "node1 ansible_host=${{ github.event.inputs.vm_ip }} ansible_user=root" >> 
+task2/inventory.ini
 
-      - name: Check SSH connectivity
+      - name: Test connection
         run: ansible all -i task2/inventory.ini -m ping --private-key ~/.ssh/id_ed25519
-
-      - name: Dry run
-        run: ansible-playbook -i task2/inventory.ini task2/playbook.yml --private-key 
-~/.ssh/id_ed25519 --check
 
       - name: Run playbook
         run: ansible-playbook -i task2/inventory.ini task2/playbook.yml --private-key 
 ~/.ssh/id_ed25519
-
-      - name: Show Minikube dashboard hint
-        run: |
-          echo "Use SSH to VM and run:"
-          echo "minikube dashboard --url"
-          echo "or:"
-          echo "kubectl port-forward --address 0.0.0.0 svc/<service-name> 8002:8002 -n dev"
