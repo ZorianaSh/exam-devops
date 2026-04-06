@@ -93,7 +93,8 @@
         var: helm_check.stdout_lines
 
     - name: Kill old kubectl proxy
-      shell: pkill -f "kubectl proxy" || true
+      shell: pkill -f "kubectl proxy"
+      ignore_errors: yes
 
     - name: Start kubectl proxy
       shell: |
