@@ -31,4 +31,12 @@ variable "bucket_name" {
   type    = string
   default = "shkolniuk-bucket"
 }
+variable "spaces_access_id" {
+  type      = string
+  sensitive = true
+}
 
+variable "spaces_secret_key" {
+  type      = string
+  sensitive = true
+}
