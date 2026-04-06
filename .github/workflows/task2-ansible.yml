@@ -31,4 +31,3 @@ jobs:
       - name: Run playbook
         run: ansible-playbook -i task2/inventory.ini task2/playbook.yml --private-key 
 ~/.ssh/id_ed25519
-
