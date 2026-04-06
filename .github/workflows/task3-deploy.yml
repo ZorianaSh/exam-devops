@@ -5,50 +5,43 @@ on:
     branches:
       - develop
     tags:
-      - "1.0.0"
+      - '1.0.0'
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # -------------------------
-      # LOGIN TO GHCR
-      # -------------------------
+      - name: Set image tag
+        id: vars
+        run: |
+          if [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
+            echo "tag=develop" >> "$GITHUB_OUTPUT"
+            echo "env_name=dev" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=1.0.0" >> "$GITHUB_OUTPUT"
+            echo "env_name=release" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} 
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" 
 --password-stdin
 
-      # -------------------------
-      # BUILD IMAGE
-      # -------------------------
       - name: Build image
-        run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
-            TAG=develop
-          else
-            TAG=1.0.0
-          fi
-          docker build -t ghcr.io/${{ github.repository_owner }}/task3-app:$TAG ./task3/app
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/task3-app:${{ 
+steps.vars.outputs.tag }} ./task3/app
 
-      # -------------------------
-      # PUSH IMAGE
-      # -------------------------
       - name: Push image
-        run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
-            TAG=develop
-          else
-            TAG=1.0.0
-          fi
-          docker push ghcr.io/${{ github.repository_owner }}/task3-app:$TAG
+        run: docker push ghcr.io/${{ github.repository_owner }}/task3-app:${{ 
+steps.vars.outputs.tag }}
 
-      # -------------------------
-      # SSH TO SERVER
-      # -------------------------
       - name: SSH deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -61,9 +54,11 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git
             fi
             cd exam-devops
-            git pull
+            git fetch --all
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
 
-            if [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+            if [ "${{ steps.vars.outputs.env_name }}" = "dev" ]; then
               kubectl apply -f task3/k8s/dev/namespace.yaml
               kubectl apply --dry-run=client -f task3/k8s/dev/
               kubectl apply -f task3/k8s/dev/
