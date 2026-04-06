@@ -111,11 +111,11 @@
 >/tmp/kubectl-proxy.log 2>&1 &
       args:
         executable: /bin/bash
+
     - name: Kill old kubectl proxy
       shell: pkill -f "kubectl proxy" || true
 
     - name: Start kubectl proxy (background)
-      shell: "nohup kubectl proxy --address='0.0.0.0' --disable-filter=true --port=8001 
->/tmp/kubectl-proxy.log 2>&1 &"
-      args:
-        executable: /bin/bash
+      shell: |
+        nohup kubectl proxy --address='0.0.0.0' --disable-filter=true --port=8001 
+>/tmp/kubectl-proxy.log 2>&1 &
