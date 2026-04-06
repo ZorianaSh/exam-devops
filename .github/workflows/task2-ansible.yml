@@ -2,11 +2,6 @@ name: Task2 Ansible Setup
 
 on:
   workflow_dispatch:
-    inputs:
-      vm_ip:
-        description: "VM public IP"
-        required: true
-        default: "159.89.12.21"
 
 jobs:
   ansible:
@@ -17,21 +12,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
+        run: sudo apt update && sudo apt install -y ansible
 
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ github.event.inputs.vm_ip }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H 159.89.12.21 >> ~/.ssh/known_hosts
 
       - name: Create inventory
         run: |
-          echo "[minikube]" > task2/inventory.ini
-          echo "node1 ansible_host=${{ github.event.inputs.vm_ip }} ansible_user=root" >> 
+          printf '%s\n' '[minikube]' > task2/inventory.ini
+          printf '%s\n' 'node1 ansible_host=159.89.12.21 ansible_user=root' >> 
 task2/inventory.ini
 
       - name: Test connection
