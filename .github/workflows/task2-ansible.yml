@@ -1,0 +1,54 @@
+name: Task2 Ansible Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      vm_ip:
+        description: "VM public IP"
+        required: true
+        default: "159.89.12.21"
+
+jobs:
+  ansible:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ github.event.inputs.vm_ip }} >> ~/.ssh/known_hosts
+
+      - name: Create inventory
+        run: |
+          cat > task2/inventory.ini <<EOF
+          [minikube]
+          node1 ansible_host=${{ github.event.inputs.vm_ip }} ansible_user=root
+          EOF
+
+      - name: Check SSH connectivity
+        run: ansible all -i task2/inventory.ini -m ping --private-key ~/.ssh/id_ed25519
+
+      - name: Dry run
+        run: ansible-playbook -i task2/inventory.ini task2/playbook.yml --private-key 
+~/.ssh/id_ed25519 --check
+
+      - name: Run playbook
+        run: ansible-playbook -i task2/inventory.ini task2/playbook.yml --private-key 
+~/.ssh/id_ed25519
+
+      - name: Show Minikube dashboard hint
+        run: |
+          echo "Use SSH to VM and run:"
+          echo "minikube dashboard --url"
+          echo "or:"
+          echo "kubectl port-forward --address 0.0.0.0 svc/<service-name> 8002:8002 -n dev"
