@@ -30,5 +30,5 @@ variable "ssh_fingerprint" {
 variable "bucket_name" {
   type    = string
   default = "shkolniuk-bucket"
-}Щ
+}
 
